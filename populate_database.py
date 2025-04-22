@@ -46,11 +46,15 @@ def populate_database(db):
     # Load new documents
     logger.info("Loading new documents...")
     documents = load_documents()
+    # ✅ Normalize metadata: make sure 'source' only contains the filename
+    
     if not documents:
         logger.info("No new documents found.")
         print("No new documents found.")
         return
-
+    for doc in documents:
+        full_source = doc.metadata.get("source", "")
+        doc.metadata["source"] = os.path.basename(full_source)
     new_sources = {doc.metadata['source'].split('\\')[-1] for doc in documents}
     logger.info(f"Found new sources: {new_sources}")
 

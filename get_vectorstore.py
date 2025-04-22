@@ -9,7 +9,7 @@ def get_qdrant_store():
     
     client = QdrantClient(
         url="http://localhost:6333",
-        path=QDRANT_DB_PATH,
+        # path=QDRANT_DB_PATH,
         prefer_grpc=False,
     )
 

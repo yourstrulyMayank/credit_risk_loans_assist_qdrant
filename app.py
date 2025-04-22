@@ -153,11 +153,14 @@ def run_query_database(latest_file):
 
     try:
         prompts = load_prompts(PROMPTS_FILE_PATH)
+        logger.info(f'prompts: {prompts}')
         results = {}
 
         for k, v in prompts.items():
             answer = hybrid_query(v, latest_file, model)
+            logger.info(f'answer: {answer}')
             results[k] = answer
+        logger.info(f'results: {results}')
 
         # You can still generate summary here too
         from summary_utils import generate_summary

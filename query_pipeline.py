@@ -2,13 +2,27 @@
 from get_vectorstore import get_qdrant_store
 from langchain_ollama import OllamaLLM
 from config import LLM_MODEL_NAME
-
-llm = OllamaLLM(model=LLM_MODEL_NAME)
-
-def hybrid_query(question: str, filename: str, top_k=5) -> str:
+from logger_utils import setup_logger
+# llm = OllamaLLM(model=LLM_MODEL_NAME)
+logger = setup_logger()
+def hybrid_query(question: str, filename: str, llm: OllamaLLM, top_k=5) -> str:
     db = get_qdrant_store()
-    matched_docs = db.similarity_search(query=question, k=top_k)
-
+    matched_docs = db.similarity_search(
+    query=question,
+    k=top_k,
+    filter={
+        "must": [
+            {
+                "key": "source",
+                "match": {
+                    "value": filename
+                }
+            }
+        ]
+    }
+)
+    logger.info(f'filename: {filename}')
+    logger.info(f"Matched documents: {matched_docs}")
     relevant_chunks = [
         doc for doc in matched_docs if filename in doc.metadata.get("source", "")
     ]
