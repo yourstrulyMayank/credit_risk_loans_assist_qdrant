@@ -1,9 +1,10 @@
 # get_vectorstore.py
 from qdrant_client import QdrantClient
-from langchain_community.vectorstores import Qdrant
+# from langchain_community.vectorstores import Qdrant
+from langchain_qdrant import QdrantVectorStore, RetrievalMode
 from get_embedding_function import get_embedding_function
 from config import QDRANT_DB_PATH, COLLECTION_NAME
-
+from qdrant_client.http.models import Distance, VectorParams
 def get_qdrant_store():
     embedding_function = get_embedding_function()
     
@@ -14,13 +15,14 @@ def get_qdrant_store():
     )
 
     if COLLECTION_NAME not in [col.name for col in client.get_collections().collections]:
-        client.recreate_collection(
+        client.create_collection(
             collection_name=COLLECTION_NAME,
-            vectors_config={"size": 384, "distance": "Cosine"}  # Adjust vector size if needed
+            vectors_config=VectorParams(size=3072, distance=Distance.COSINE),  # Adjust vector size if needed
         )
 
-    return Qdrant(
+    return QdrantVectorStore(
         client=client,
         collection_name=COLLECTION_NAME,
-        embeddings=embedding_function,
+        embedding=embedding_function,
+        retrieval_mode=RetrievalMode.DENSE,
     )

@@ -15,6 +15,7 @@ from concurrent.futures import ThreadPoolExecutor
 from qdrant_client import QdrantClient
 from qdrant_client.http.models import VectorParams, Distance
 from qdrant_client_init import get_qdrant_client
+from qdrant_client.models import MatchText
 logger = setup_logger()
 qdrant_client = get_qdrant_client()
 # Paths
@@ -42,20 +43,23 @@ def ensure_collection_exists(qdrant_client: QdrantClient, collection_name: str, 
 
 
 def populate_database(db):
-    
-    # Load new documents
     logger.info("Loading new documents...")
     documents = load_documents()
-    # ✅ Normalize metadata: make sure 'source' only contains the filename
-    
+
     if not documents:
         logger.info("No new documents found.")
         print("No new documents found.")
         return
-    for doc in documents:
-        full_source = doc.metadata.get("source", "")
-        doc.metadata["source"] = os.path.basename(full_source)
-    new_sources = {doc.metadata['source'].split('\\')[-1] for doc in documents}
+
+    # # ✅ Normalize 'source' field: keep only the filename (no folder path)
+    # for doc in documents:
+    #     source = doc.metadata.get("source", "")
+    #     source = source.replace("\\", "/")  # normalize slashes
+    #     filename_only = os.path.basename(source)  # keep only the filename
+    #     doc.metadata["source"] = filename_only
+
+    # Collect new filenames
+    new_sources = {doc.metadata["source"] for doc in documents}
     logger.info(f"Found new sources: {new_sources}")
 
     print("Removing old entries for re-uploaded documents...")
@@ -70,8 +74,8 @@ def populate_database(db):
     add_to_qdrant(chunks, db)
     print("Added to Database")
 
-    # Add to files.txt
-    filename = documents[-1].metadata['source'].split('\\')[-1]
+    # Update files.txt with last file
+    filename = documents[-1].metadata["source"]
     add_file_to_list(db, filename, len(chunks))
 
     logger.info("Moving processed files to permanent storage...")
@@ -190,7 +194,7 @@ def add_file_to_list(db, file_name, new_chunk_count):
     scroll_result = db.client.scroll(
         collection_name=db.collection_name,
         scroll_filter=Filter(
-            must=[FieldCondition(key="source", match=MatchValue(value=file_name))]
+            must=[FieldCondition(key="source", match=MatchText(text=file_name))]
         ),
         with_payload=True,
         with_vectors=False,
@@ -215,22 +219,47 @@ def add_file_to_list(db, file_name, new_chunk_count):
     logger.info(f"✅ Updated file list for {file_name} with {chunk_difference} new chunks.")
     print(f"✅ Updated file list for {file_name} with {chunk_difference} new chunks.")
 
+# def remove_existing_documents(db, sources):
+#     client = db.client
+#     for source in sources:
+#         source_filename = source.split("\\")[-1]
+#         points = client.scroll(
+#             collection_name=db.collection_name,
+#             scroll_filter=Filter(
+#                 must=[FieldCondition(key="source", match=MatchValue(value=source_filename))]
+#             ),
+#             limit=10_000,
+#         )
+#         point_ids = [point.id for point in points[0]]
+#         if point_ids:
+#             logger.info(f"Deleting {len(point_ids)} points for {source_filename}...")
+#             client.delete(collection_name=db.collection_name, points=point_ids)
+#             logger.info(f"✅ Deleted entries for {source_filename}")
+
 def remove_existing_documents(db, sources):
     client = db.client
     for source in sources:
         source_filename = source.split("\\")[-1]
-        points = client.scroll(
+        scroll_result = db.client.scroll(
             collection_name=db.collection_name,
             scroll_filter=Filter(
-                must=[FieldCondition(key="source", match=MatchValue(value=source_filename))]
+                must=[FieldCondition(key="source", match=MatchText(text=source_filename))]
             ),
+            with_payload=True,
+            with_vectors=False,
             limit=10_000,
         )
-        point_ids = [point.id for point in points[0]]
+        points = scroll_result[0]
+        point_ids = [
+            point.id
+            for point in points
+            if source_filename in point.payload.get("source", "")
+        ]
         if point_ids:
             logger.info(f"Deleting {len(point_ids)} points for {source_filename}...")
             client.delete(collection_name=db.collection_name, points=point_ids)
             logger.info(f"✅ Deleted entries for {source_filename}")
+
 
 if __name__ == "__main__":
     main()

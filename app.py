@@ -21,6 +21,7 @@ from summary_utils import generate_summary
 from query_pipeline import hybrid_query
 from qdrant_client_init import get_qdrant_client
 from populate_database import ensure_collection_exists
+from get_vectorstore import get_qdrant_store
 # ------------------- Config -------------------
 app = Flask(__name__)
 UPLOAD_FOLDER = 'data/new'
@@ -41,11 +42,7 @@ time.sleep(2)
 qdrant_client = get_qdrant_client()  # same as in populate_database
 COLLECTION_NAME = "my_documents"
 
-db = Qdrant(
-    client=qdrant_client,
-    collection_name=COLLECTION_NAME,
-    embeddings=embedding_function,
-)
+db = get_qdrant_store()
 model = OllamaLLM(model="llama3.2")
 
 processing_status_upload = {"complete": False}

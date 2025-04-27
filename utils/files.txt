@@ -1,1 +1,3 @@
-Sample_Loan.pdf:15
+
+Sample_Loan.pdf:
+data\new\Sample_Loan.pdf:15
