@@ -1,3 +1,5 @@
 
 Sample_Loan.pdf:
 data\new\Sample_Loan.pdf:15
+annual-report-2024-29-68-1-6.pdf:
+data\new\annual-report-2024-29-68-1-6.pdf:23

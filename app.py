@@ -4,6 +4,7 @@ import time
 import subprocess
 import threading
 from flask import Flask, render_template, request, redirect, url_for, jsonify
+from qdrant_client.models import MatchText, Filter, FieldCondition, MatchValue
 from langchain_ollama import OllamaLLM
 from langchain_qdrant import Qdrant
 from langchain.chains.summarize import load_summarize_chain
@@ -160,8 +161,20 @@ def run_query_database(latest_file):
         logger.info(f'results: {results}')
 
         # You can still generate summary here too
-        from summary_utils import generate_summary
-        summary = generate_summary([], latest_file)  # Pass empty if using pre-chunked files
+        file_chunks = db.similarity_search(
+            query="",
+            k=100,
+            filter=Filter(
+                should=[
+                    FieldCondition(
+                        key="metadata.source",
+                        match=MatchValue(value=os.path.join("data", "new", latest_file))
+                    )
+                ]
+            )
+        )
+        
+        summary = generate_summary(file_chunks, latest_file)  # Pass empty if using pre-chunked files
         results["Summary"] = summary
 
         fetched_results.update(results)
